@@ -1,9 +1,10 @@
 # uvmodeldisk
 #To prepare the visibilities for UV model fitting, follow the steps below, in CASA.
 
-```split('vis.ms',field='f',outputvis='vis_binned.ms',spw='sp',timebin='30s')```
-
-```statwt('vis_binned.ms')```
+```
+split('vis.ms',field='f',outputvis='vis_binned.ms',spw='sp',timebin='30s')
+statwt('vis_binned.ms')
+```
 
 #WHEN USING combinespws=True, have to combine WITHOUT selecting channels, full spws!!  averaging is fine, selecting channels is NOT!
 
