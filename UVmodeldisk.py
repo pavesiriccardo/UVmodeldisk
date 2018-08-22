@@ -195,27 +195,68 @@ class uvmodeldisk(object):
 			print(ln_like)
 			return ln_like+self.offset_lnlike
 	def run_Multinest(self,Nthreads,output_filename='temporary_model'):
+		'''
+		This function runs Multinest using the self.my_prior priors, which need to be appropriately set to a Multinest-type of priors.
+		
+		Parameters
+		Nthreads: int
+			Number of threads per Multinest instance used by Galario to compute the model visibilities
+		Output_filename: string
+			Multinest output base file names. See pymultinest docs for how to read and analyze those.
+		
+		'''
 		n_params = 10
 		from galario import double
 		double.threads(Nthreads)
 		pymultinest.run(self.loglike_multinest, self.my_prior, n_params, outputfiles_basename=output_filename, resume = True, verbose = True,sampling_efficiency='model')
 	def lnprob(self,cube):
+		'''
+		This function combines the emcee-type prior and the log likelihood to compute the log probability. Should be used with emcee.
+		'''
 		if self.my_prior(cube)>-np.inf: 
 			return self.my_prior(cube)+self.loglike(cube)
 		else:
 			return -np.inf
 	def find_max_prob(self,starting_guess):
+		'''
+		This function tries to find the maximum probability parameter values. This may be useful for ML fitting or, e.g., to start an MCMC sampler such as emcee.
+		Parameters
+		
+		starting_guess: list of float
+			This should be a list of disk fitting parameters to be used as a starting point for the optimizer.
+		
+		Returns
+		
+		result['x']: list of float
+			The list of parameters which achieves the highest probability, as computed by the optimizer.
+		'''
 		nll = lambda *args: -self.lnprob(*args)
 		from scipy.optimize import minimize
 		result=minimize(nll,starting_guess,method='Nelder-Mead')
 		print(result)
 		return result['x']
-	def run_emcee(self,Nthreads,nwalkers,starting_point,Nsteps,output_filename='temporary_model'):
+	def run_emcee(self,Nthreads_galario,Nthreads_emcee,nwalkers,starting_point,Nsteps,output_filename='temporary_model'):
+		'''
+		This function runs emcee to produce MCMC samples from the probability distribution defined by my_prior and loglike.
+		
+		Parameters
+		
+		Nthreads_galario, Nthreads_emcee: (int,int)
+			Number of threads to be used by Galario and by emcee, respectively
+		nwalkers: int
+			Number of Emcee walkers, see emcee documentation
+		starting_point: list of float
+			List of parameters to be used as starting point for the MCMC chain
+		Nsteps: int
+			Number of MCMC steps, needs to be >100 because I burn 100 by default (easy to change this below). The functions saves the samples every 100 steps.
+		output_filename: string
+			Filename for the numpy save file storing the samples
+		'''
 		ndim=10
 		from galario import double
-		double.threads(2)
+		double.threads(Nthreads_galario)
 		pos = [np.array(starting_point)*(1+.1*np.random.randn(ndim)) for i in range(nwalkers)]
-		sampler = emcee.EnsembleSampler(nwalkers, ndim, self.lnprob,threads=Nthreads)
+		sampler = emcee.EnsembleSampler(nwalkers, ndim, self.lnprob,threads=Nthreads_emcee)
 		sampler.run_mcmc(pos, 100)
 		for idx in range(int(Nsteps/100)):
 			sampler.run_mcmc(None, 100)
