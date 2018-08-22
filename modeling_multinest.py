@@ -1,63 +1,52 @@
 
 import numpy as np
 from KinMS import KinMS
-import uvutil,sample_vis
+import uvutil
 from astropy.io import fits
-from scipy.optimize import minimize
 import pymultinest
 from galario.double import sampleImage
 
 
-xs=3.#7.68
-ys=3.#7.68
-vs=2075
-cellsize=.1
-dv=83.
-beamsize=.15
+xs=3. #x-axis size of the model image (in arcsec)
+ys=3. #y-axis size of the model image (in arcsec)
+vs=2075 #velocity-axis size of the model image (in km/s)
+cellsize=.1  #arcsec in a pixel
+dv=83.   #km/s in a channel
 
-#inc=60.
-#gassigma=30.
-#posang=0.
-#intflux=3.
+sbrad=np.arange(0,2,.01) #radius vector defining the light profile, sbprof is the light intensity evaluated at these radial values
 
-sbrad=np.arange(0,2,.01)#sbrad=np.arange(0,.7,.15)
-
-#bright_std=.8
-#vmax=500
-#vel_scale=.3
-
-#sbprof=np.exp(-sbrad**2/2/(bright_std/2.355)**2)
-velrad=sbrad
-#velprof=vmax*np.arctan(velrad/vel_scale)/np.pi*2
+velrad=sbrad #use the same radius vector for the velocity definition, used by velprof to define the velocity profile
 
 diskthick=0
-cleanout=True
-nsamps=1e5
-#setting up the stage for fitting
-UVFITSfile='../CRLE_spw01_binned_comb_centered.uvfits'
+cleanout=True  #no beam convolution required
+nsamps=1e5   #number of clouds, should be sufficient
 
-vis_complex_data, wgt_data = uvutil.visload(UVFITSfile)
+#setting up the stage for fitting
+UVFITSfile='data/filename.uvfits'   #where the visibility data are
+
+vis_complex_data, wgt_data = uvutil.visload(UVFITSfile) #load visibility and weights
 vis_complex_model_template=np.copy(vis_complex_data)
 wgt_data=wgt_data.flatten()
 good_vis=wgt_data>0
-wgt_data=wgt_data[good_vis]
+wgt_data=wgt_data[good_vis]  #get rid of flagged data
 vis_complex_data=vis_complex_data.flatten()[good_vis]
-modelheader = fits.getheader('../CRLE_spw01_binned_comb_centered.fits')
+modelheader = fits.getheader('data/image_cube.fits')   #this FITS file should contain the image cube to be used as a model template (the dimensions and coordinates are the only thing that's used). It's best obtained by imaging the visibilities themselves, using mode='channel'. This ensures that the cell size is sufficient to suitable for the UV coverage.
 uu_cube, vv_cube, ww_cube = uvutil.uvload(UVFITSfile)
-#this can be the same throughout
 pcd = uvutil.pcdload(UVFITSfile)
-y,x,zz=np.mgrid[:30,:30,:25]   #fixed this
-#r=np.hypot(x-15+.326,y-15-.34)
+
+#In this code we assume the continuum emission can be modelled as a 2D Gaussian, with known parameters. This is often the case and the continuum parameters are often precisely known. If they are not, include the continuum parameters as fitting parameters and make sure the visibilities cover a good range of continuum-only channels. 
+y,x,zz=np.mgrid[:int(ys/cellsize),:int(xs/cellsize),:int(vs/dv)]   #define a coordinate cube of the same size as the KinMS model, to make the continuum model, to be added in.
 
 '''
+Definition of posang for the rotating disk.
 
-positive
+If velprof=vmax*np.arctan(velrad/vel_scale)/np.pi*2
 posang 0:   to the right
 posang 90: downwards
 posang 180: to the left
 posang 270 (=-90): upward
 
-negative
+If velprof=-vmax*np.arctan(velrad/vel_scale)/np.pi*2
 posang 0:   to the left
 posang 90: upward
 posang 180: to the right
