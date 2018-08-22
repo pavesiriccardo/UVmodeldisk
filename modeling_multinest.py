@@ -53,6 +53,19 @@ posang 180: to the right
 posang 270 (=-90): downward
 '''
 
+#For example: if the emission is moving from left to right, as channels increase (toward lower frequency and higher velocity, red). Then need posang=180 if minus sign in front of vmax.
+
+#gassigma is the gas dispersion in km/s
+#bright_std is the size as gaussian FWHM in arcsec
+#vmax is max velocity in km/s
+#vel_scale is the radial distance, in arcsec, where velocity goes to vmax/2
+#vel_cen is km/s away from central channel, increasing vel_cen moves it to later channels, i.e. same direction as the channel ordering
+#inc is 0 for face on and 90 for edge-on
+#posang is starting with red emission from horizontal to the right (toward decreasing RA), and increasing counterclockwise (when we have a - in front of vmax). posang near 0, and - in front of vmax, means the emission moves right to left as channels increase. positive posang rotates this pattern toward the north, in a counterclockwise manner
+#contF is the continuum integrated flux in mJy
+#contS is the continuum size as standard deviation in arcsec
+#x_cen, y_cen are in arcsec. y_cen actually controls the x-axis and positive means increasing x of center. x_cen controls y axis, and positive means increasing y of center
+
 
 def loglike(cube,ndim,nparams):
    gassigma,bright_std,vmax,vel_scale,vel_cen,inc,posang,x_cen,y_cen,intflux=cube[0],cube[1],cube[2],cube[3],cube[4],cube[5],cube[6],cube[7],cube[8],cube[9]
