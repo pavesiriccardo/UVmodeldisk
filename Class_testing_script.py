@@ -21,7 +21,7 @@ my_model.set_ellipt_gauss_continuum(-.012,-.068,.471,.471,0,8.)   #set the conti
 #Define appropriate priors for each parameter
 
 def prior(cube,ndim,nparams):
-	from Priors import Priors
+	from Priors_Multinest import Priors
 	pri=Priors()
 	cube[0]=pri.LogPrior(cube[0],10.,700.) 
 	cube[1]=pri.LogPrior(cube[1],.1,2.)   
