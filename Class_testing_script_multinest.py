@@ -36,7 +36,7 @@ def prior(cube,ndim,nparams):
 
 my_model.my_prior=prior   #Set the my_prior function of the object to point to the correct prior definition
 
-my_model.run_Multinest(2)   #Run Multinest!
+my_model.run_Multinest(2)   #Run Multinest with 2 threads!
 
-#execute this script with MPI by calling: mpiexec -n 15 python Class_testing_script.py
+#execute this script with MPI by calling: mpiexec -n 15 python Class_testing_script_multinest.py
 
