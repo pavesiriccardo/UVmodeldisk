@@ -24,4 +24,6 @@ exportuvfits('vis_binned_comb.ms','vis_binned_comb.uvfits')
 ```
 Potentially run ```statwt``` again at this point, even though it should not be necessary.
 
-Then use either emcee, or pymultinest to run the modeling using the scripts included.
+Then use either emcee, or pymultinest to run the modeling, through the same class structure defined in UVmodeldisk.py
+
+See Class_testing_script.py for an example script!
