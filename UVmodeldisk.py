@@ -23,10 +23,8 @@ class uvmodeldisk(object):
 	def __init__(self,xs,ys,vs,cellsize,dv,UVFITSfile,cube_template_file):
 		"""
 		This function initializes the modeling object.
-
 		Parameters
 		----------
-
 		xs: float
 			X-axis size of the model image (in arcsec)
 		ys: float
@@ -77,12 +75,9 @@ class uvmodeldisk(object):
 		self.xpos_center_padded,self.ypos_center_padded= int(self.Nxpix/2),int(self.Nypix/2)
 	def set_ellipt_gauss_continuum(self,cont_xcen,cont_ycen,cont_maj_FWHM,cont_min_FWHM,cont_posang,cont_flux):
 		"""
-
 		    This function defines the continuum model.
-
 		    Parameters
 		    ----------
-
 		    cont_xcen,cont_ycen: (float,float)
 		    	X-axis and Y-axis offset of continuum center from image center (in arcsec)
 		    cont_maj_FWHM,cont_min_FWHM: (float,float)
@@ -91,11 +86,9 @@ class uvmodeldisk(object):
 		    	Position angle of the ellipse, counterclockwise from the positive x axis (in degrees)
 		    cont_flux: float
 		    	Integrated flux of the continuum emission (in mJy)
-
 		    Returns
 		    -------
 		    
-
 			    
 		"""
 		xcen=self.x-cont_xcen/self.cellsize-self.Nxpix_small/2.
@@ -112,11 +105,8 @@ class uvmodeldisk(object):
 
 		'''
 		This function calculates the model ln(likelihood).
-
 		Parameters
 		----------
-
-
 		gassigma: float
 			The gas dispersion in km/s
 		bright_std: float
@@ -139,61 +129,53 @@ class uvmodeldisk(object):
 		-------
 			ln_like+self.offset_lnlike: float
 				We offset the ln_like value by a constant to make the number be small enough for Multinest to be able to work with.
-
-
 		Definition of posang for the rotating disk:
 		If velprof=vmax*np.arctan(velrad/vel_scale)/np.pi*2
 		posang 0:   to the right
 		posang 90: downwards
 		posang 180: to the left
 		posang 270 (=-90): upward
-
 		If velprof=-vmax*np.arctan(velrad/vel_scale)/np.pi*2
 		posang 0:   to the left
 		posang 90: upward
 		posang 180: to the right
 		posang 270 (=-90): downward
-
 		For example: if the emission is moving from left to right, as channels increase (toward lower frequency and higher velocity, red). Then need posang=180 if minus sign in front of vmax.
-
 		'''
-		if False:# and self.my_prior(cube)==-np.inf:
-			return -np.inf
-		else:
-			gassigma,bright_std,vmax,vel_scale,vel_cen,inc,posang,x_cen,y_cen,intflux=cube[0],cube[1],cube[2],cube[3],cube[4],cube[5],cube[6],cube[7],cube[8],cube[9]
-			model_cont=self.model_cont
-			sbprof=np.exp(-self.sbrad**2/2/(bright_std/2.355)**2)
-			velprof=vmax*np.arctan(self.velrad/vel_scale)/np.pi*2
-			model=model_cont+KinMS(self.xs,self.ys,self.vs,cellSize=self.cellsize,dv=self.dv,beamSize=0,inc=inc,gasSigma=gassigma,sbProf=sbprof,sbRad=self.sbrad,velRad=self.velrad,velProf=velprof,fileName=False,diskThick=0,cleanOut=True,ra=0,dec=0,nSamps=self.nsamps,posAng=posang,intFlux=intflux,inClouds=[],vLOS_clouds=[],flux_clouds=0,vSys=0,restFreq=115.271e9,phaseCen=np.array([x_cen,y_cen]),vOffset=vel_cen,fixSeed=False,vRadial=0,vPosAng=0,vPhaseCen=np.array([x_cen,y_cen]),returnClouds=False,gasGrav=False)
-			xpos,ypos=self.xpos_center_padded,self.ypos_center_padded
-			model_padded=np.transpose(np.pad(model,((ypos-self.Nypix_small/2,self.Nypix-ypos-self.Nypix_small/2),(xpos-self.Nxpix_small/2,self.Nxpix-xpos-self.Nxpix_small/2),(0,0)),mode='constant'),(2,0,1))
-			modelimage_cube = model_padded 
-			vis_complex_model=np.copy(self.vis_complex_model_template)
-			for chan in range(modelimage_cube.shape[0]):
-				uu=np.ones((self.uu_cube.shape[0],self.uu_cube.shape[1],1,self.uu_cube.shape[3]))
-				vv=np.ones((self.vv_cube.shape[0],self.vv_cube.shape[1],1,self.vv_cube.shape[3]))
-				uu[:,:,0,:]=self.uu_cube[:,:,chan,:]
-				vv[:,:,0,:]=self.vv_cube[:,:,chan,:]
-				modelimage=modelimage_cube[chan]
-				uushape = uu.shape
-				uu = uu.flatten()
-				vv = vv.flatten()
-				uu=uu.copy(order='C')  #This
-				vv=vv.copy(order='C') #this
-				modelimage=np.roll(np.flip(modelimage,axis=0),1,axis=0).copy(order='C')#.byteswap().newbyteorder()    #This
-				model_complex = sampleImage(modelimage, np.absolute(self.modelheader['CDELT1'])/180*np.pi, uu, vv)  #this uses galario
-				#model_complex = sample_vis.uvmodel(modelimage, modelheader, uu, vv, pcd)
-				vis_complex = model_complex.reshape(uushape)
-				vis_complex_model[:,:,chan,:]=vis_complex[:,:,0,:]
-			#replace_visibilities('HZ10_spw01_comb.uvfits','my_img_mod.fits','model_visib.uvfits')
-			#vis_complex_model,bb  = uvutil.visload('model_visib.uvfits')
-			vis_complex_model=vis_complex_model.flatten()[self.good_vis]
-			def find_param(scale):
-				diff_all=np.abs(self.vis_complex_data-vis_complex_model*scale)
-				return np.sum(self.wgt_data*diff_all*diff_all)
-			ln_like=-0.5*find_param(1)
-			print(ln_like)
-			return ln_like+self.offset_lnlike
+		gassigma,bright_std,vmax,vel_scale,vel_cen,inc,posang,x_cen,y_cen,intflux=cube[0],cube[1],cube[2],cube[3],cube[4],cube[5],cube[6],cube[7],cube[8],cube[9]
+		model_cont=self.model_cont
+		sbprof=np.exp(-self.sbrad**2/2/(bright_std/2.355)**2)
+		velprof=vmax*np.arctan(self.velrad/vel_scale)/np.pi*2
+		model=model_cont+KinMS(self.xs,self.ys,self.vs,cellSize=self.cellsize,dv=self.dv,beamSize=0,inc=inc,gasSigma=gassigma,sbProf=sbprof,sbRad=self.sbrad,velRad=self.velrad,velProf=velprof,fileName=False,diskThick=0,cleanOut=True,ra=0,dec=0,nSamps=self.nsamps,posAng=posang,intFlux=intflux,inClouds=[],vLOS_clouds=[],flux_clouds=0,vSys=0,restFreq=115.271e9,phaseCen=np.array([x_cen,y_cen]),vOffset=vel_cen,fixSeed=False,vRadial=0,vPosAng=0,vPhaseCen=np.array([x_cen,y_cen]),returnClouds=False,gasGrav=False)
+		xpos,ypos=self.xpos_center_padded,self.ypos_center_padded
+		model_padded=np.transpose(np.pad(model,((ypos-self.Nypix_small/2,self.Nypix-ypos-self.Nypix_small/2),(xpos-self.Nxpix_small/2,self.Nxpix-xpos-self.Nxpix_small/2),(0,0)),mode='constant'),(2,0,1))
+		modelimage_cube = model_padded 
+		vis_complex_model=np.copy(self.vis_complex_model_template)
+		for chan in range(modelimage_cube.shape[0]):
+			uu=np.ones((self.uu_cube.shape[0],self.uu_cube.shape[1],1,self.uu_cube.shape[3]))
+			vv=np.ones((self.vv_cube.shape[0],self.vv_cube.shape[1],1,self.vv_cube.shape[3]))
+			uu[:,:,0,:]=self.uu_cube[:,:,chan,:]
+			vv[:,:,0,:]=self.vv_cube[:,:,chan,:]
+			modelimage=modelimage_cube[chan]
+			uushape = uu.shape
+			uu = uu.flatten()
+			vv = vv.flatten()
+			uu=uu.copy(order='C')  #This
+			vv=vv.copy(order='C') #this
+			modelimage=np.roll(np.flip(modelimage,axis=0),1,axis=0).copy(order='C')#.byteswap().newbyteorder()    #This
+			model_complex = sampleImage(modelimage, np.absolute(self.modelheader['CDELT1'])/180*np.pi, uu, vv)  #this uses galario
+			#model_complex = sample_vis.uvmodel(modelimage, modelheader, uu, vv, pcd)
+			vis_complex = model_complex.reshape(uushape)
+			vis_complex_model[:,:,chan,:]=vis_complex[:,:,0,:]
+		#replace_visibilities('HZ10_spw01_comb.uvfits','my_img_mod.fits','model_visib.uvfits')
+		#vis_complex_model,bb  = uvutil.visload('model_visib.uvfits')
+		vis_complex_model=vis_complex_model.flatten()[self.good_vis]
+		def find_param(scale):
+			diff_all=np.abs(self.vis_complex_data-vis_complex_model*scale)
+			return np.sum(self.wgt_data*diff_all*diff_all)
+		ln_like=-0.5*find_param(1)
+		print(ln_like)
+		return ln_like+self.offset_lnlike
 	def run_Multinest(self,Nthreads,output_filename='temporary_model'):
 		'''
 		This function runs Multinest using the self.my_prior priors, which need to be appropriately set to a Multinest-type of priors.
@@ -260,7 +242,7 @@ class uvmodeldisk(object):
 		from galario import double
 		double.threads(Nthreads_galario)
 		pos = [np.array(starting_point)*(1+.1*np.random.randn(ndim)) for i in range(nwalkers)]
-		sampler = emcee.EnsembleSampler(nwalkers, ndim, self.lnprob,threads=Nthreads_emcee)
+		sampler = emcee.EnsembleSampler(nwalkers, ndim, picklable_boundmethod(self.lnprob),threads=Nthreads_emcee)
 		sampler.run_mcmc(pos, 100)
 		for idx in range(int(Nsteps/100)):
 			sampler.run_mcmc(None, 100)
@@ -270,10 +252,21 @@ class uvmodeldisk(object):
 
 
 
+#Necessary in order to use the lnprob instance method within the emcee sampler, to make it picklable
+class picklable_boundmethod(object):
+	def __init__(self, mt):
+		self.mt = mt
+	def __getstate__(self):
+		return self.mt.im_self, self.mt.im_func.__name__
+	def __setstate__(self, (s,fn)):
+		self.mt = getattr(s, fn)
+	def __call__(self, *a, **kw):
+		return self.mt(*a, **kw)
+
+
 
 '''
 #Example of priors for Multinest
-
 def prior(cube,ndim,nparams):
 	from Priors_multinest import Priors
 	pri=Priors()
@@ -289,7 +282,6 @@ def prior(cube,ndim,nparams):
 	cube[9]=pri.LogPrior(cube[9],1,5) 
 
 #Example of priors for emcee
-
 def prior(cube):
 	from Priors_emcee import Priors
 	pri=Priors()
@@ -305,6 +297,4 @@ def prior(cube):
 	lnprior+=pri.UniformPrior(cube[8],-.15,.15)    
 	lnprior+=pri.LogPrior(cube[9],1.,5.)       
 	return lnprior
-
-
 '''
