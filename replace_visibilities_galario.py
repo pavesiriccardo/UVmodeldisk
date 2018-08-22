@@ -2,7 +2,7 @@
 
 import numpy as np,os
 from KinMS import KinMS
-import uvutil,sample_vis
+import uvutil
 from astropy.io import fits
 from scipy.optimize import minimize
 from galario.double import sampleImage
