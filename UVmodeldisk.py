@@ -16,7 +16,7 @@ import numpy as np
 from KinMS import KinMS
 import uvutil
 from astropy.io import fits
-import pymultinest
+import pymultinest,emcee
 from galario.double import sampleImage
 
 class uvmodeldisk(object):
@@ -199,30 +199,38 @@ class uvmodeldisk(object):
 		from galario import double
 		double.threads(Nthreads)
 		pymultinest.run(self.loglike_multinest, self.my_prior, n_params, outputfiles_basename=output_filename, resume = True, verbose = True,sampling_efficiency='model')
+	def lnprob(self,cube):
+		if self.my_prior(cube)>-np.inf: 
+			return self.my_prior(cube)+self.loglike(cube)
+		else:
+			return -np.inf
+	def find_max_prob(self,starting_guess):
+		nll = lambda *args: -self.lnprob(*args)
+		from scipy.optimize import minimize
+		result=minimize(nll,starting_guess,method='Nelder-Mead')
+		print(result)
+		return result['x']
+	def run_emcee(self,Nthreads,nwalkers,starting_point,Nsteps,output_filename='temporary_model'):
+		ndim=10
+		from galario import double
+		double.threads(2)
+		pos = [np.array(starting_point)*(1+.1*np.random.randn(ndim)) for i in range(nwalkers)]
+		sampler = emcee.EnsembleSampler(nwalkers, ndim, self.lnprob,threads=Nthreads)
+		sampler.run_mcmc(pos, 100)
+		for idx in range(int(Nsteps/100)):
+			sampler.run_mcmc(None, 100)
+			samples = sampler.chain[:, 10:, :].reshape((-1, ndim))
+			np.save(output_filename,samples)
+			print(idx,' of ',int(Nsteps/100))
 
 
 
 
 '''
-a = pymultinest.Analyzer(outputfiles_basename= 'better_prior_model', n_params = 10)
+#Example of priors for Multinest
 
-samples=a.get_equal_weighted_posterior()[:,:-1]
-
-a_lnZ = a.get_stats()['global evidence']
-print 
-print '************************'
-print 'MAIN RESULT: Evidence Z '
-print '************************'
-print '  log Z for model with 1 line = %.1f' % (a_lnZ / log(10))
-'''
-#########################################################################################
-#REDO with better priors
-
-
-'''
-#Example of priors
 def prior(cube,ndim,nparams):
-	from Priors import Priors
+	from Priors_multinest import Priors
 	pri=Priors()
 	cube[0]=pri.LogPrior(cube[0],10.,700.) 
 	cube[1]=pri.LogPrior(cube[1],.1,2.)   
@@ -235,5 +243,23 @@ def prior(cube,ndim,nparams):
 	cube[8]=pri.UniformPrior(cube[8],-.15,.15)   
 	cube[9]=pri.LogPrior(cube[9],1,5) 
 
-'''
+#Example of priors for emcee
 
+def prior(cube):
+	from Priors_emcee import Priors
+	pri=Priors()
+	lnprior=0
+	lnprior+=pri.LogPrior(cube[0],10.,700.) 
+	lnprior+=pri.LogPrior(cube[1],.1,2.)   
+	lnprior+=pri.LogPrior(cube[2],10.,2000.)  
+	lnprior+=pri.LogPrior(cube[3],.01,.3)   
+	lnprior+=pri.UniformPrior(cube[4],-400.,400.)      
+	lnprior+=pri.SinPrior(cube[5],0.,90.)   
+	lnprior+=pri.UniformPrior(cube[6],60.,120.)     
+	lnprior+=pri.UniformPrior(cube[7],-.15,.15)     
+	lnprior+=pri.UniformPrior(cube[8],-.15,.15)    
+	lnprior+=pri.LogPrior(cube[9],1.,5.)       
+	return lnprior
+
+
+'''
