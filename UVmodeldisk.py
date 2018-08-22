@@ -217,11 +217,13 @@ class uvmodeldisk(object):
 			return self.my_prior(cube)+self.loglike(cube)
 		else:
 			return -np.inf
-	def find_max_prob(self,starting_guess):
+	def find_max_prob(self,starting_guess,Nthreads_galario):
 		'''
 		This function tries to find the maximum probability parameter values. This may be useful for ML fitting or, e.g., to start an MCMC sampler such as emcee.
 		Parameters
 		
+		Nthreads_galario: int
+			Number of threads to be used by Galario
 		starting_guess: list of float
 			This should be a list of disk fitting parameters to be used as a starting point for the optimizer.
 		
@@ -230,6 +232,8 @@ class uvmodeldisk(object):
 		result['x']: list of float
 			The list of parameters which achieves the highest probability, as computed by the optimizer.
 		'''
+		from galario import double
+		double.threads(Nthreads_galario)
 		nll = lambda *args: -self.lnprob(*args)
 		from scipy.optimize import minimize
 		result=minimize(nll,starting_guess,method='Nelder-Mead')
