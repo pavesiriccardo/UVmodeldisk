@@ -1,4 +1,4 @@
-# uvmodeldisk
+# UVmodeldisk
 This code uses KinMSpy for producing the rotating disk model and uses Galario to convert the images into visibilities.
 The purpose of this code is to carry out a full posterior study for the disk model parameters, evaluating the model likelihood directly on the visibility data.
 
@@ -26,4 +26,4 @@ Potentially run ```statwt``` again at this point, even though it should not be n
 
 Then use either emcee, or pymultinest to run the modeling, through the same class structure defined in UVmodeldisk.py
 
-See Class_testing_script.py for an example script!
+See Class_testing_script_multinest.py and Class_testing_script_emcee.py for example scripts!
