@@ -1,4 +1,7 @@
 # uvmodeldisk
+This code uses KinMSpy for producing the rotating disk model and uses Galario to convert the images into visibilities.
+The purpose of this code is to carry out a full posterior study for the disk model parameters, evaluating the model likelihood directly on the visibility data.
+
 To prepare the visibilities for UV model fitting, follow the steps below, in CASA.
 
 ```
