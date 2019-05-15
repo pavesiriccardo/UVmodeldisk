@@ -146,7 +146,41 @@ class uvmodeldisk(object):
 		model_cont=self.model_cont
 		sbprof=np.exp(-self.sbrad**2/2/(bright_std/2.355)**2)
 		velprof=vmax*np.arctan(self.velrad/vel_scale)/np.pi*2
-		model=model_cont+KinMS(self.xs,self.ys,self.vs,cellSize=self.cellsize,dv=self.dv,beamSize=0,inc=inc,gasSigma=gassigma,sbProf=sbprof,sbRad=self.sbrad,velRad=self.velrad,velProf=velprof,fileName=False,diskThick=0,cleanOut=True,ra=0,dec=0,nSamps=self.nsamps,posAng=posang,intFlux=intflux,inClouds=[],vLOS_clouds=[],flux_clouds=0,vSys=0,restFreq=115.271e9,phaseCen=np.array([x_cen,y_cen]),vOffset=vel_cen,fixSeed=False,vRadial=0,vPosAng=0,vPhaseCen=np.array([x_cen,y_cen]),returnClouds=False,gasGrav=False)
+		self.modelimage=KinMS(self.xs,
+				self.ys,
+				self.vs,
+				cellSize=self.cellsize,
+				dv=self.dv,
+				beamSize=0,
+				inc=inc,
+				gasSigma=gassigma,
+				sbProf=sbprof,
+				sbRad=self.sbrad,
+				velRad=self.velrad,
+				velProf=velprof,
+				diskThick=0,
+				cleanOut=True,
+				ra=0,
+				dec=0,
+				nSamps=self.nsamps,
+				posAng=posang,
+				intFlux=intflux,
+				inClouds=[],
+				vLOS_clouds=[],
+				flux_clouds=0,
+				vSys=0,
+				restFreq=115.271e9,
+				phaseCen=np.array([x_cen,y_cen]),
+				vOffset=vel_cen,
+				fixSeed=False,
+				vRadial=0,
+				vPosAng=0,
+				#vPhaseCen=np.array([x_cen,y_cen]), 
+				#That ^ was a workaround for a bug in KinMS that has now been fixed 
+				returnClouds=False,
+				gasGrav=False,
+				fileName=False)
+		model = model_cont+self.modelimage
 		xpos,ypos=self.xpos_center_padded,self.ypos_center_padded
 		model_padded=np.transpose(np.pad(model,((ypos-self.Nypix_small/2,self.Nypix-ypos-self.Nypix_small/2),(xpos-self.Nxpix_small/2,self.Nxpix-xpos-self.Nxpix_small/2),(0,0)),mode='constant'),(2,0,1))
 		modelimage_cube = model_padded 
