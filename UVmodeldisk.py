@@ -13,7 +13,7 @@ For details of permissions granted please see LICENCE.md
 """
 
 import numpy as np
-from KinMS import KinMS
+from kinms import KinMS
 import uvutil
 from astropy.io import fits
 import pymultinest
@@ -196,8 +196,7 @@ class uvmodeldisk(object):
                               ).model_cube()
         model = model_cont+self.modelimage
         xpos,ypos=self.xpos_center_padded,self.ypos_center_padded
-        model_padded=np.transpose(np.pad(model,((ypos-self.Nypix_small/2,self.Nypix-ypos-self.Nypix_small/2),(xpos-self.Nxpix_small/2,self.Nxpix-xpos-self.Nxpix_small/2),(0,0)),mode='constant'),(2,0,1))
-
+        model_padded=np.transpose(np.pad(model,((ypos-self.Nypix_small//2,self.Nypix-ypos-self.Nypix_small//2),(xpos-self.Nxpix_small//2,self.Nxpix-xpos-self.Nxpix_small//2),(0,0)),mode='constant'),(2,0,1))
         if testMode:
             np.save("test.npy",model_padded)
             print("testing")
