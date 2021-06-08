@@ -110,6 +110,107 @@ class uvmodeldisk(object):
     def my_prior(self,cube):
         return 0
     
+    def export_uvfits(self,cube, filename):
+        """
+        Takes in the same parameters as loglike() + a file name.
+        Makes and exports a .uvfits file containing the model and saves it at filename.
+        use export_residuals instead if you want to have a residual uvfits!
+        """ 
+        vis = self.make_model_visibilities(cube)
+
+        self.write_uvfits(vis,self.orig_wgt_data,filename)
+
+    def write_uvfits(self,data,wgts,outfilename):
+        #Note: this was reverse engineered from uvutil. 
+        # It works for the alma data I have, but I cannot guarantee
+        # it in other circumstances!!
+        origfits = fits.open(self.UVFITSfile)
+        #visheader = origfits[0].header
+        origfits[0].data['DATA'][:,0,0,:,:,:,0] = data.real
+        origfits[0].data['DATA'][:,0,0,:,:,:,1] = data.imag
+        origfits[0].data['DATA'][:,0,0,:,:,:,2] = wgts 
+        origfits.writeto(outfilename)
+
+    def export_residuals(self,cube,filename):
+        vis = self.make_model_visibilities(cube)
+        residual = self.orig_vis_complex_data-vis
+        self.write_uvfits(residual,self.orig_wgt_data,filename)
+
+    def make_kinms_model(self,cube):
+        gassigma,bright_std,vmax,vel_scale,vel_cen,inc,posang,x_cen,y_cen,intflux=cube[0:10]
+        
+        sbprof=np.exp(-self.sbrad**2/2/(bright_std/2.355)**2)
+        velprof=vmax*np.arctan(self.velrad/vel_scale)/np.pi*2
+        return KinMS(self.xs,self.ys,
+                     self.vs,
+                     cellSize=self.cellsize,
+                     dv=self.dv,
+                     beamSize=0,
+                     inc=inc,
+                     gasSigma=gassigma,
+                     sbProf=sbprof,
+                     sbRad=self.sbrad,
+                     velRad=self.velrad,
+                     velProf=velprof,
+                     #diskThick=0,
+                     cleanOut=True,
+                     #ra=0,
+                     #dec=0,
+                     nSamps=self.nsamps,
+                     posAng=posang,
+                     intFlux=intflux,
+                     #inClouds=[],
+                     #vLOS_clouds=[],
+                     #flux_clouds=0,
+                     #vSys=0,
+                     #restFreq=115.271e9,
+                     phaseCent=np.array([x_cen,y_cen]),
+                     vOffset=vel_cen,
+                     #fixSeed=False,
+                     #inflowVel=0,
+                     #vPosAng=0,
+                     #vPhaseCen=np.array([x_cen,y_cen]), 
+                     #That ^ was a workaround for a bug in KinMS that has now been fixed 
+                     returnClouds=False,
+                     #massDist=[],
+                     #fileName=False
+                     ).model_cube()
+
+    def make_model_visibilities(self,cube, testMode=False, loadMode=False):
+        model_cont=self.model_cont
+        self.modelimage = self.make_kinms_model(cube)
+        model = model_cont+self.modelimage
+        xpos,ypos=self.xpos_center_padded,self.ypos_center_padded
+        model_padded=np.transpose(np.pad(model,((ypos-self.Nypix_small//2,self.Nypix-ypos-self.Nypix_small//2),(xpos-self.Nxpix_small//2,self.Nxpix-xpos-self.Nxpix_small//2),(0,0)),mode='constant'),(2,0,1))
+        if testMode:
+            np.save("test.npy",model_padded)
+            print("testing")
+        if loadMode:
+            model_padded = np.load("test.npy")
+            print("loading KinMS cube from test.npy")
+
+        modelimage_cube = model_padded 
+        vis_complex_model=np.copy(self.vis_complex_model_template)
+        for chan in range(modelimage_cube.shape[0]):
+            uu=np.ones((self.uu_cube.shape[0],self.uu_cube.shape[1],1,self.uu_cube.shape[3]))
+            vv=np.ones((self.vv_cube.shape[0],self.vv_cube.shape[1],1,self.vv_cube.shape[3]))
+            uu[:,:,0,:]=self.uu_cube[:,:,chan,:]
+            vv[:,:,0,:]=self.vv_cube[:,:,chan,:]
+            modelimage=modelimage_cube[chan]
+            uushape = uu.shape
+            uu = uu.flatten()
+            vv = vv.flatten()
+            uu=uu.copy(order='C') 
+            vv=vv.copy(order='C') 
+            modelimage=np.roll(np.flip(modelimage,axis=0),1,axis=0).copy(order='C')  # .byteswap().newbyteorder()  
+            model_complex = sampleImage(modelimage, np.absolute(self.modelheader['CDELT1'])/180*np.pi, uu, vv)  # this uses galario
+            #model_complex = sample_vis.uvmodel(modelimage, modelheader, uu, vv, pcd)
+            vis_complex = model_complex.reshape(uushape)
+            vis_complex_model[:,:,chan,:]=vis_complex[:,:,0,:]
+        #replace_visibilities('HZ10_spw01_comb.uvfits','my_img_mod.fits','model_visib.uvfits')
+        #vis_complex_model,bb  = uvutil.visload('model_visib.uvfits')
+        return vis_complex_model
+        
     def loglike(self,cube, testMode=False, loadMode=False):
 
         '''
@@ -155,77 +256,9 @@ class uvmodeldisk(object):
         posang 270 (=-90): downward
         For example: if the emission is moving from left to right, as channels increase (toward lower frequency and higher velocity, red). Then need posang=180 if minus sign in front of vmax.
         '''
-        gassigma,bright_std,vmax,vel_scale,vel_cen,inc,posang,x_cen,y_cen,intflux=cube[0:10]
-        model_cont=self.model_cont
-        sbprof=np.exp(-self.sbrad**2/2/(bright_std/2.355)**2)
-        velprof=vmax*np.arctan(self.velrad/vel_scale)/np.pi*2
-        self.modelimage=KinMS(self.xs,
-                              self.ys,
-                              self.vs,
-                              cellSize=self.cellsize,
-                              dv=self.dv,
-                              beamSize=0,
-                              inc=inc,
-                              gasSigma=gassigma,
-                              sbProf=sbprof,
-                              sbRad=self.sbrad,
-                              velRad=self.velrad,
-                              velProf=velprof,
-                              #diskThick=0,
-                              cleanOut=True,
-                              #ra=0,
-                              #dec=0,
-                              nSamps=self.nsamps,
-                              posAng=posang,
-                              intFlux=intflux,
-                              #inClouds=[],
-                              #vLOS_clouds=[],
-                              #flux_clouds=0,
-                              #vSys=0,
-                              #restFreq=115.271e9,
-                              phaseCent=np.array([x_cen,y_cen]),
-                              vOffset=vel_cen,
-                              #fixSeed=False,
-                              #inflowVel=0,
-                              #vPosAng=0,
-                              #vPhaseCen=np.array([x_cen,y_cen]), 
-                              #That ^ was a workaround for a bug in KinMS that has now been fixed 
-                              returnClouds=False,
-                              #massDist=[],
-                              #fileName=False
-                              ).model_cube()
-        model = model_cont+self.modelimage
-        xpos,ypos=self.xpos_center_padded,self.ypos_center_padded
-        model_padded=np.transpose(np.pad(model,((ypos-self.Nypix_small//2,self.Nypix-ypos-self.Nypix_small//2),(xpos-self.Nxpix_small//2,self.Nxpix-xpos-self.Nxpix_small//2),(0,0)),mode='constant'),(2,0,1))
-        if testMode:
-            np.save("test.npy",model_padded)
-            print("testing")
-        if loadMode:
-            model_padded = np.load("test.npy")
-            print("loading KinMS cube from test.npy")
-
-        modelimage_cube = model_padded 
-        vis_complex_model=np.copy(self.vis_complex_model_template)
-        for chan in range(modelimage_cube.shape[0]):
-            uu=np.ones((self.uu_cube.shape[0],self.uu_cube.shape[1],1,self.uu_cube.shape[3]))
-            vv=np.ones((self.vv_cube.shape[0],self.vv_cube.shape[1],1,self.vv_cube.shape[3]))
-            uu[:,:,0,:]=self.uu_cube[:,:,chan,:]
-            vv[:,:,0,:]=self.vv_cube[:,:,chan,:]
-            modelimage=modelimage_cube[chan]
-            uushape = uu.shape
-            uu = uu.flatten()
-            vv = vv.flatten()
-            uu=uu.copy(order='C') 
-            vv=vv.copy(order='C') 
-            modelimage=np.roll(np.flip(modelimage,axis=0),1,axis=0).copy(order='C')  # .byteswap().newbyteorder()  
-            model_complex = sampleImage(modelimage, np.absolute(self.modelheader['CDELT1'])/180*np.pi, uu, vv)  # this uses galario
-            #model_complex = sample_vis.uvmodel(modelimage, modelheader, uu, vv, pcd)
-            vis_complex = model_complex.reshape(uushape)
-            vis_complex_model[:,:,chan,:]=vis_complex[:,:,0,:]
-        #replace_visibilities('HZ10_spw01_comb.uvfits','my_img_mod.fits','model_visib.uvfits')
-        #vis_complex_model,bb  = uvutil.visload('model_visib.uvfits')
+        vis_complex_model = self.make_model_visibilities(cube, testMode=testMode, loadMode=loadMode)
         vis_complex_model=vis_complex_model.flatten()[self.good_vis]
-        
+
         def find_param(scale):
             diff_all=np.abs(self.vis_complex_data-vis_complex_model*scale)
             return np.sum(self.wgt_data*diff_all*diff_all)
