@@ -110,7 +110,7 @@ class uvmodeldisk(object):
     def my_prior(self,cube):
         return 0
     
-    def loglike(self,cube):
+    def loglike(self,cube, testMode=False, loadMode=False):
 
         '''
         This function calculates the model ln(likelihood).
@@ -134,6 +134,10 @@ class uvmodeldisk(object):
             Center position for the disk, they are in arcsec. y_cen actually controls the x-axis and positive means increasing x of center. x_cen controls y axis, and positive means increasing y of center
         intflux: float
             Line integrated flux in Jy km/s
+        testMode: boolean
+            Saves the KinMS cube to test.npy
+        loadMode: boolean
+            instead of generating a KinMS cube, load one from test.npy
         Returns
         -------
             ln_like+self.offset_lnlike: float
@@ -193,6 +197,12 @@ class uvmodeldisk(object):
         model = model_cont+self.modelimage
         xpos,ypos=self.xpos_center_padded,self.ypos_center_padded
         model_padded=np.transpose(np.pad(model,((ypos-self.Nypix_small/2,self.Nypix-ypos-self.Nypix_small/2),(xpos-self.Nxpix_small/2,self.Nxpix-xpos-self.Nxpix_small/2),(0,0)),mode='constant'),(2,0,1))
+
+        if testMode:
+            np.save("test.npy",model_padded)
+        if loadMode:
+            model_padded = np.load("test.npy")
+
         modelimage_cube = model_padded 
         vis_complex_model=np.copy(self.vis_complex_model_template)
         for chan in range(modelimage_cube.shape[0]):
