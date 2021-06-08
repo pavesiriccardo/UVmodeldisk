@@ -17,7 +17,7 @@ from KinMS import KinMS
 import uvutil
 from astropy.io import fits
 import pymultinest
-import emcee
+#import emcee
 from galario.double import sampleImage
 from datetime import datetime
 
@@ -155,7 +155,7 @@ class uvmodeldisk(object):
         posang 270 (=-90): downward
         For example: if the emission is moving from left to right, as channels increase (toward lower frequency and higher velocity, red). Then need posang=180 if minus sign in front of vmax.
         '''
-        gassigma,bright_std,vmax,vel_scale,vel_cen,inc,posang,x_cen,y_cen,intflux=cube[0],cube[1],cube[2],cube[3],cube[4],cube[5],cube[6],cube[7],cube[8],cube[9]
+        gassigma,bright_std,vmax,vel_scale,vel_cen,inc,posang,x_cen,y_cen,intflux=cube[0:10]
         model_cont=self.model_cont
         sbprof=np.exp(-self.sbrad**2/2/(bright_std/2.355)**2)
         velprof=vmax*np.arctan(self.velrad/vel_scale)/np.pi*2
@@ -200,8 +200,10 @@ class uvmodeldisk(object):
 
         if testMode:
             np.save("test.npy",model_padded)
+            print("testing")
         if loadMode:
             model_padded = np.load("test.npy")
+            print("loading KinMS cube from test.npy")
 
         modelimage_cube = model_padded 
         vis_complex_model=np.copy(self.vis_complex_model_template)
